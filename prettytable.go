@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 )
 
@@ -24,6 +25,13 @@ const (
 type Table struct {
 	fieldNames []string
 	rows       [][]any
+	// alignments stores per-column alignment
+	alignments map[string]Alignment
+	// sortBy and reverseSort for sorting
+	sortBy      string
+	reverseSort bool
+	// rowFilter for filtering
+	rowFilter func([]any) bool
 }
 
 // NewTable creates a new empty table
@@ -122,6 +130,35 @@ func (t *Table) String() string {
 	return t.RenderASCII()
 }
 
+// SetAlign sets the alignment for a column by field name.
+func (t *Table) SetAlign(field string, align Alignment) {
+	if t.alignments == nil {
+		t.alignments = make(map[string]Alignment)
+	}
+	t.alignments[field] = align
+}
+
+// SetAlignAll sets the alignment for all columns.
+func (t *Table) SetAlignAll(align Alignment) {
+	if t.alignments == nil {
+		t.alignments = make(map[string]Alignment)
+	}
+	for _, f := range t.fieldNames {
+		t.alignments[f] = align
+	}
+}
+
+// SetSortBy sets the field to sort by and order.
+func (t *Table) SetSortBy(field string, reverse bool) {
+	t.sortBy = field
+	t.reverseSort = reverse
+}
+
+// SetRowFilter sets a filter function for rows.
+func (t *Table) SetRowFilter(filter func([]any) bool) {
+	t.rowFilter = filter
+}
+
 // RenderASCII renders the table as an ASCII string
 func (t *Table) RenderASCII() string {
 	if len(t.fieldNames) == 0 {
@@ -132,7 +169,45 @@ func (t *Table) RenderASCII() string {
 	for i, name := range t.fieldNames {
 		colWidths[i] = len(name)
 	}
-	for _, row := range t.rows {
+	rows := t.rows
+	// Filtering
+	if t.rowFilter != nil {
+		var filtered [][]any
+		for _, row := range rows {
+			if t.rowFilter(row) {
+				filtered = append(filtered, row)
+			}
+		}
+		rows = filtered
+	}
+	// Sorting
+	if t.sortBy != "" {
+		idx := -1
+		for i, name := range t.fieldNames {
+			if name == t.sortBy {
+				idx = i
+				break
+			}
+		}
+		if idx != -1 {
+			sorted := make([][]any, len(rows))
+			copy(sorted, rows)
+			less := func(i, j int) bool {
+				si := fmt.Sprintf("%v", sorted[i][idx])
+				sj := fmt.Sprintf("%v", sorted[j][idx])
+				if t.reverseSort {
+					return sj < si
+				}
+				return si < sj
+			}
+			sort.Slice(sorted, less)
+			rows = sorted
+		}
+	}
+	for i, name := range t.fieldNames {
+		colWidths[i] = len(name)
+	}
+	for _, row := range rows {
 		for i, cell := range row {
 			cellStr := fmt.Sprintf("%v", cell)
 			if len(cellStr) > colWidths[i] {
@@ -160,8 +235,14 @@ func (t *Table) RenderASCII() string {
 	// Header
 	b.WriteString("|")
 	for i, name := range t.fieldNames {
+		align := AlignLeft
+		if t.alignments != nil {
+			if a, ok := t.alignments[name]; ok {
+				align = a
+			}
+		}
 		b.WriteString(" ")
-		b.WriteString(padString(name, colWidths[i]))
+		b.WriteString(padAlign(name, colWidths[i], align))
 		b.WriteString(" |")
 		if i == len(t.fieldNames)-1 {
 			break
@@ -171,12 +252,18 @@ func (t *Table) RenderASCII() string {
 	b.WriteString(line("+", "-"))
 	b.WriteString("\n")
 	// Rows
-	for _, row := range t.rows {
+	for _, row := range rows {
 		b.WriteString("|")
 		for i, cell := range row {
 			cellStr := fmt.Sprintf("%v", cell)
+			align := AlignLeft
+			if t.alignments != nil {
+				if a, ok := t.alignments[t.fieldNames[i]]; ok {
+					align = a
+				}
+			}
 			b.WriteString(" ")
-			b.WriteString(padString(cellStr, colWidths[i]))
+			b.WriteString(padAlign(cellStr, colWidths[i], align))
 			b.WriteString(" |")
 			if i == len(row)-1 {
 				break
@@ -194,6 +281,24 @@ func padString(s string, w int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", w-len(s))
+}
+
+// padAlign pads s to width w with the given alignment
+func padAlign(s string, w int, align Alignment) string {
+	pad := w - len(s)
+	if pad <= 0 {
+		return s
+	}
+	switch align {
+	case AlignRight:
+		return strings.Repeat(" ", pad) + s
+	case AlignCenter:
+		left := pad / 2
+		right := pad - left
+		return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+	default:
+		return s + strings.Repeat(" ", pad)
+	}
 }
 
 // FromCSV reads CSV data from an io.Reader and returns a new Table.

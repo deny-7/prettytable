@@ -217,3 +217,70 @@ func TestClearRowsAndClear(t *testing.T) {
 		t.Errorf("Clear did not clear table: rows=%+v, fields=%+v", table.rows, table.fieldNames)
 	}
 }
+
+func TestSortingFilteringAlignment(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B"})
+	table.AddRow([]any{"foo", 2})
+	table.AddRow([]any{"bar", 1})
+	table.AddRow([]any{"baz", 3})
+
+	// Test sorting by B ascending
+	table.SetSortBy("B", false)
+	expected := `+-----+---+
+| A   | B |
++-----+---+
+| bar | 1 |
+| foo | 2 |
+| baz | 3 |
++-----+---+`
+	actual := strings.TrimSpace(table.RenderASCII())
+	if actual != expected {
+		t.Errorf("Sort ascending failed.\nExpected:\n%s\nActual:\n%s", expected, actual)
+	}
+
+	// Test sorting by B descending
+	table.SetSortBy("B", true)
+	expected = `+-----+---+
+| A   | B |
++-----+---+
+| baz | 3 |
+| foo | 2 |
+| bar | 1 |
++-----+---+`
+	actual = strings.TrimSpace(table.RenderASCII())
+	if actual != expected {
+		t.Errorf("Sort descending failed.\nExpected:\n%s\nActual:\n%s", expected, actual)
+	}
+
+	// Test filtering (only B > 1)
+	table.SetSortBy("", false) // no sort
+	table.SetRowFilter(func(row []any) bool {
+		return row[1].(int) > 1
+	})
+	expected = `+-----+---+
+| A   | B |
++-----+---+
+| foo | 2 |
+| baz | 3 |
++-----+---+`
+	actual = strings.TrimSpace(table.RenderASCII())
+	if actual != expected {
+		t.Errorf("Filtering failed.\nExpected:\n%s\nActual:\n%s", expected, actual)
+	}
+
+	// Test alignment
+	table.SetRowFilter(nil) // clear filter
+	table.SetAlign("A", AlignRight)
+	table.SetAlign("B", AlignCenter)
+	expected = `+-----+---+
+|   A | B |
++-----+---+
+| foo | 2 |
+| bar | 1 |
+| baz | 3 |
++-----+---+`
+	actual = strings.TrimSpace(table.RenderASCII())
+	if actual != expected {
+		t.Errorf("Alignment failed.\nExpected:\n%s\nActual:\n%s", expected, actual)
+	}
+}
