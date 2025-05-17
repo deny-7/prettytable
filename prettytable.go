@@ -33,6 +33,42 @@ type Table struct {
 	reverseSort bool
 	// rowFilter for filtering
 	rowFilter func([]any) bool
+	// style holds table style options
+	style TableStyle
+}
+
+// TableStyle holds options for customizing table appearance
+// All fields are optional; zero values mean default behavior
+type TableStyle struct {
+	Border                  bool
+	PreserveInternalBorder  bool
+	Header                  bool
+	HRule                   string // "FRAME", "HEADER", "ALL", "NONE"
+	VRule                   string // "FRAME", "ALL", "NONE"
+	IntFormat               string // e.g. ",d" or "03d"
+	FloatFormat             string // e.g. ".2f"
+	CustomFormat            map[string]func(field string, value any) string
+	PaddingWidth            int
+	LeftPaddingWidth        int
+	RightPaddingWidth       int
+	VerticalChar            string
+	HorizontalChar          string
+	HorizontalAlignChar     string
+	JunctionChar            string
+	TopJunctionChar         string
+	BottomJunctionChar      string
+	RightJunctionChar       string
+	LeftJunctionChar        string
+	TopRightJunctionChar    string
+	TopLeftJunctionChar     string
+	BottomRightJunctionChar string
+	BottomLeftJunctionChar  string
+	MinTableWidth           int
+	MaxTableWidth           int
+	MaxWidth                int
+	MinWidth                int
+	UseHeaderWidth          *bool
+	BreakOnHyphens          *bool
 }
 
 // NewTable creates a new empty table
@@ -158,6 +194,11 @@ func (t *Table) SetSortBy(field string, reverse bool) {
 // SetRowFilter sets a filter function for rows.
 func (t *Table) SetRowFilter(filter func([]any) bool) {
 	t.rowFilter = filter
+}
+
+// SetStyle sets the table style options
+func (t *Table) SetStyle(style TableStyle) {
+	t.style = style
 }
 
 // RenderASCII renders the table as an ASCII string
@@ -510,6 +551,148 @@ func (t *Table) RenderMediaWiki() string {
 	}
 	b.WriteString("|}")
 	return b.String()
+}
+
+// RenderUnicode renders the table using Unicode box-drawing characters
+func (t *Table) RenderUnicode() string {
+	if len(t.fieldNames) == 0 {
+		return "(no fields)"
+	}
+	// Compute column widths
+	colWidths := make([]int, len(t.fieldNames))
+	for i, name := range t.fieldNames {
+		colWidths[i] = runeWidth(name)
+	}
+	rows := t.rows
+	// Filtering
+	if t.rowFilter != nil {
+		var filtered [][]any
+		for _, row := range rows {
+			if t.rowFilter(row) {
+				filtered = append(filtered, row)
+			}
+		}
+		rows = filtered
+	}
+	// Sorting
+	if t.sortBy != "" {
+		idx := -1
+		for i, name := range t.fieldNames {
+			if name == t.sortBy {
+				idx = i
+				break
+			}
+		}
+		if idx != -1 {
+			sorted := make([][]any, len(rows))
+			copy(sorted, rows)
+			less := func(i, j int) bool {
+				si := fmt.Sprintf("%v", sorted[i][idx])
+				sj := fmt.Sprintf("%v", sorted[j][idx])
+				if t.reverseSort {
+					return sj < si
+				}
+				return si < sj
+			}
+			sort.Slice(sorted, less)
+			rows = sorted
+		}
+	}
+	for i, name := range t.fieldNames {
+		w := runeWidth(name)
+		if w > colWidths[i] {
+			colWidths[i] = w
+		}
+	}
+	for _, row := range rows {
+		for i, cell := range row {
+			cellStr := fmt.Sprintf("%v", cell)
+			w := runeWidth(cellStr)
+			if w > colWidths[i] {
+				colWidths[i] = w
+			}
+		}
+	}
+	// Helper to build a line
+	line := func(left, mid, right, sep string) string {
+		var b strings.Builder
+		b.WriteString(left)
+		for i, w := range colWidths {
+			b.WriteString(strings.Repeat(mid, w+2))
+			if i < len(colWidths)-1 {
+				b.WriteString(sep)
+			}
+		}
+		b.WriteString(right)
+		return b.String()
+	}
+	// Box-drawing chars
+
+	top := line("┌", "─", "┐", "┬")
+	mid := line("├", "─", "┤", "┼")
+	bot := line("└", "─", "┘", "┴")
+	var b strings.Builder
+	b.WriteString(top)
+	b.WriteString("\n")
+	// Header
+	b.WriteString("│")
+	for i, name := range t.fieldNames {
+		align := AlignLeft
+		if t.alignments != nil {
+			if a, ok := t.alignments[name]; ok {
+				align = a
+			}
+		}
+		b.WriteString(" ")
+		b.WriteString(padAlignUnicode(name, colWidths[i], align))
+		b.WriteString(" │")
+	}
+	b.WriteString("\n")
+	b.WriteString(mid)
+	b.WriteString("\n")
+	// Rows
+	for _, row := range rows {
+		b.WriteString("│")
+		for i, cell := range row {
+			cellStr := fmt.Sprintf("%v", cell)
+			align := AlignLeft
+			if t.alignments != nil {
+				if a, ok := t.alignments[t.fieldNames[i]]; ok {
+					align = a
+				}
+			}
+			b.WriteString(" ")
+			b.WriteString(padAlignUnicode(cellStr, colWidths[i], align))
+			b.WriteString(" │")
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString(bot)
+	return b.String()
+}
+
+// runeWidth returns the number of runes (Unicode code points) in a string
+func runeWidth(s string) int {
+	return len([]rune(s))
+}
+
+// padAlignUnicode pads s to width w (in runes) with the given alignment
+func padAlignUnicode(s string, w int, align Alignment) string {
+	r := []rune(s)
+	pad := w - len(r)
+	if pad <= 0 {
+		return s
+	}
+	switch align {
+	case AlignRight:
+		return strings.Repeat(" ", pad) + s
+	case AlignCenter:
+		left := pad / 2
+		right := pad - left
+		return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+	default:
+		return s + strings.Repeat(" ", pad)
+	}
 }
 
 // htmlEscape escapes HTML special chars

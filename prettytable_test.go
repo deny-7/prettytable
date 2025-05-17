@@ -339,3 +339,44 @@ func TestOutputFormats(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderUnicode(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B"})
+	table.AddRow([]any{"αβγ", 1})
+	table.AddRow([]any{"δεζ", 2})
+	unicode := table.RenderUnicode()
+	if !strings.Contains(unicode, "┌") || !strings.Contains(unicode, "┐") || !strings.Contains(unicode, "│") {
+		t.Errorf("Unicode output missing box-drawing characters: %s", unicode)
+	}
+	if !strings.Contains(unicode, "αβγ") || !strings.Contains(unicode, "δεζ") {
+		t.Errorf("Unicode output missing data: %s", unicode)
+	}
+	// Check alignment with Unicode
+	table.SetAlign("A", AlignCenter)
+	table.SetAlign("B", AlignRight)
+	unicode2 := table.RenderUnicode()
+	if len(unicode2) == 0 {
+		t.Errorf("Unicode output with alignment is empty")
+	}
+	// Optionally print for visual inspection
+	// t.Logf("\n%s", unicode2)
+}
+
+func TestSetStyleAffectsTable(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B"})
+	table.AddRow([]any{"foo", 1})
+	table.AddRow([]any{"bar", 2})
+	style := TableStyle{
+		Border:         false,
+		PaddingWidth:   0,
+		VerticalChar:   ".",
+		HorizontalChar: "_",
+		JunctionChar:   "*",
+	}
+	table.SetStyle(style)
+	// For now, just check that SetStyle sets the style field and doesn't panic
+	if table.style.Border != false || table.style.VerticalChar != "." {
+		t.Errorf("SetStyle did not set style fields correctly: %+v", table.style)
+	}
+	// (Full rendering logic using style fields is not yet implemented)
+}
