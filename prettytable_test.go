@@ -84,3 +84,34 @@ func TestTableAddColumnError(t *testing.T) {
 		t.Error("expected error for wrong column length, got nil")
 	}
 }
+
+func TestFromCSV(t *testing.T) {
+	csvData := `City name,Area,Population,Annual Rainfall
+Adelaide,1295,1158259,600.5
+Brisbane,5905,1857594,1146.4
+Darwin,112,120900,1714.7`
+	r := strings.NewReader(csvData)
+	table, err := FromCSV(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := `+-----------+------+------------+-----------------+
+| City name | Area | Population | Annual Rainfall |
++-----------+------+------------+-----------------+
+| Adelaide  | 1295 | 1158259    | 600.5           |
+| Brisbane  | 5905 | 1857594    | 1146.4          |
+| Darwin    | 112  | 120900     | 1714.7          |
++-----------+------+------------+-----------------+`
+	actual := strings.TrimSpace(table.RenderASCII())
+	if actual != expected {
+		t.Errorf("ASCII output mismatch.\nExpected:\n%s\nActual:\n%s", expected, actual)
+	}
+}
+
+func TestFromCSV_Empty(t *testing.T) {
+	r := strings.NewReader("")
+	_, err := FromCSV(r)
+	if err == nil {
+		t.Error("expected error for empty CSV, got nil")
+	}
+}

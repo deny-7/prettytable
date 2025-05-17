@@ -1,7 +1,9 @@
 package prettytable
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -150,4 +152,25 @@ func padString(s string, w int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", w-len(s))
+}
+
+// FromCSV reads CSV data from an io.Reader and returns a new Table.
+func FromCSV(r io.Reader) (*Table, error) {
+	reader := csv.NewReader(r)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
+		return nil, fmt.Errorf("CSV is empty")
+	}
+	table := NewTableWithFields(records[0])
+	for _, row := range records[1:] {
+		rowAny := make([]any, len(row))
+		for i, v := range row {
+			rowAny[i] = v
+		}
+		table.AddRow(rowAny)
+	}
+	return table, nil
 }
