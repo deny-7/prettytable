@@ -52,6 +52,27 @@ func (t *Table) AddRow(row []any) error {
 	return nil
 }
 
+// AddColumn adds a column to the table with the given field name and column data.
+func (t *Table) AddColumn(field string, column []any) error {
+	if len(t.rows) > 0 && len(column) != len(t.rows) {
+		return fmt.Errorf("column has %d rows, expected %d", len(column), len(t.rows))
+	}
+	// If no field names yet, just add
+	t.fieldNames = append(t.fieldNames, field)
+	if len(t.rows) == 0 {
+		// No rows yet, create them
+		for _, val := range column {
+			t.rows = append(t.rows, []any{val})
+		}
+	} else {
+		// Add to existing rows
+		for i, val := range column {
+			t.rows[i] = append(t.rows[i], val)
+		}
+	}
+	return nil
+}
+
 // String renders the table as ASCII (implements fmt.Stringer)
 func (t *Table) String() string {
 	return t.RenderASCII()
