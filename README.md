@@ -55,4 +55,6 @@ func main() {
 ```
 
 ## License
-MIT
+Ported to Go by Denys Bondar, 2025
+Based on original work by Luke Maurits and contributors
+Licensed under the BSD 3-Clause License
