@@ -3,6 +3,7 @@ package prettytable
 import (
 	"database/sql"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -376,4 +377,170 @@ func FromDBRows(rows *sql.Rows) (*Table, error) {
 		return nil, err
 	}
 	return table, nil
+}
+
+// RenderText renders the table as plain text (same as ASCII)
+func (t *Table) RenderText() string {
+	return t.RenderASCII()
+}
+
+// RenderCSV renders the table as CSV
+func (t *Table) RenderCSV() string {
+	var b strings.Builder
+	w := csv.NewWriter(&b)
+	w.Write(t.fieldNames)
+	for _, row := range t.rows {
+		rec := make([]string, len(row))
+		for i, v := range row {
+			rec[i] = fmt.Sprintf("%v", v)
+		}
+		w.Write(rec)
+	}
+	w.Flush()
+	return b.String()
+}
+
+// RenderJSON renders the table as JSON array of objects
+func (t *Table) RenderJSON() string {
+	objs := make([]map[string]any, len(t.rows))
+	for i, row := range t.rows {
+		obj := make(map[string]any)
+		for j, name := range t.fieldNames {
+			if j < len(row) {
+				obj[name] = row[j]
+			}
+		}
+		objs[i] = obj
+	}
+	data, err := json.MarshalIndent(objs, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(data)
+}
+
+// RenderHTML renders the table as an HTML table
+func (t *Table) RenderHTML() string {
+	escape := func(s string) string {
+		s = strings.ReplaceAll(s, "&", "&amp;")
+		s = strings.ReplaceAll(s, "<", "&lt;")
+		s = strings.ReplaceAll(s, ">", "&gt;")
+		s = strings.ReplaceAll(s, "\"", "&quot;")
+		return s
+	}
+	var b strings.Builder
+	b.WriteString("<table border=\"1\">\n<tr>")
+	for _, name := range t.fieldNames {
+		b.WriteString("<th>")
+		b.WriteString(escape(name))
+		b.WriteString("</th>")
+	}
+	b.WriteString("</tr>\n")
+	for _, row := range t.rows {
+		b.WriteString("<tr>")
+		for i, cell := range row {
+			b.WriteString("<td>")
+			b.WriteString(escape(fmt.Sprintf("%v", cell)))
+			b.WriteString("</td>")
+			if i == len(row)-1 {
+				break
+			}
+		}
+		b.WriteString("</tr>\n")
+	}
+	b.WriteString("</table>")
+	return b.String()
+}
+
+// RenderLaTeX renders the table as LaTeX tabular
+func (t *Table) RenderLaTeX() string {
+	escape := func(s string) string {
+		s = strings.ReplaceAll(s, "\\", "\\textbackslash{}")
+		s = strings.ReplaceAll(s, "_", "\\_")
+		s = strings.ReplaceAll(s, "&", "\\&")
+		s = strings.ReplaceAll(s, "%", "\\%")
+		s = strings.ReplaceAll(s, "$", "\\$")
+		s = strings.ReplaceAll(s, "#", "\\#")
+		s = strings.ReplaceAll(s, "{", "\\{")
+		s = strings.ReplaceAll(s, "}", "\\}")
+		s = strings.ReplaceAll(s, "~", "\\textasciitilde{}")
+		s = strings.ReplaceAll(s, "^", "\\textasciicircum{}")
+		return s
+	}
+	var b strings.Builder
+	b.WriteString("\\begin{tabular}{|" + strings.Repeat("l|", len(t.fieldNames)) + "}\n\\hline\n")
+	for i, name := range t.fieldNames {
+		b.WriteString(escape(name))
+		if i < len(t.fieldNames)-1 {
+			b.WriteString(" & ")
+		}
+	}
+	b.WriteString(" \\ \\hline\n")
+	for _, row := range t.rows {
+		for i, cell := range row {
+			b.WriteString(escape(fmt.Sprintf("%v", cell)))
+			if i < len(row)-1 {
+				b.WriteString(" & ")
+			}
+		}
+		b.WriteString(" \\ \\hline\n")
+	}
+	b.WriteString("\\end{tabular}")
+	return b.String()
+}
+
+// RenderMediaWiki renders the table as MediaWiki markup
+func (t *Table) RenderMediaWiki() string {
+	var b strings.Builder
+	b.WriteString("{| class=\"wikitable\"\n|-")
+	for _, name := range t.fieldNames {
+		b.WriteString("! ")
+		b.WriteString(name)
+		b.WriteString(" ")
+	}
+	b.WriteString("\n")
+	for _, row := range t.rows {
+		b.WriteString("|-")
+		for _, cell := range row {
+			b.WriteString("| ")
+			b.WriteString(fmt.Sprintf("%v", cell))
+			b.WriteString(" ")
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("|}")
+	return b.String()
+}
+
+// htmlEscape escapes HTML special chars
+func htmlEscape(s string) string {
+	replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
+	return replacer.Replace(s)
+}
+
+// latexEscape escapes LaTeX special chars
+func latexEscape(s string) string {
+	replacer := strings.NewReplacer("&", "\\&", "%", "\\%", "$", "\\$", "#", "\\#", "_", "\\_", "{", "\\{", "}", "\\}", "~", "\\textasciitilde{}", "^", "\\textasciicircum{}", "\\", "\\textbackslash{}")
+	return replacer.Replace(s)
+}
+
+// GetFormattedString returns the table as a string in the specified format.
+// Supported formats: "text", "ascii", "csv", "json", "html", "latex", "mediawiki"
+func (t *Table) GetFormattedString(format string) string {
+	switch strings.ToLower(format) {
+	case "text", "ascii":
+		return t.RenderASCII()
+	case "csv":
+		return t.RenderCSV()
+	case "json":
+		return t.RenderJSON()
+	case "html":
+		return t.RenderHTML()
+	case "latex":
+		return t.RenderLaTeX()
+	case "mediawiki":
+		return t.RenderMediaWiki()
+	default:
+		return t.RenderASCII()
+	}
 }

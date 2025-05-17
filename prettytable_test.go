@@ -284,3 +284,58 @@ func TestSortingFilteringAlignment(t *testing.T) {
 		t.Errorf("Alignment failed.\nExpected:\n%s\nActual:\n%s", expected, actual)
 	}
 }
+
+func TestOutputFormats(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B"})
+	table.AddRow([]any{"foo", 1})
+	table.AddRow([]any{"bar", 2})
+
+	// ASCII/Text
+	ascii := table.RenderASCII()
+	if !strings.Contains(ascii, "foo") || !strings.Contains(ascii, "bar") {
+		t.Errorf("ASCII output missing data: %s", ascii)
+	}
+	text := table.RenderText()
+	if text != ascii {
+		t.Errorf("RenderText should match RenderASCII")
+	}
+
+	// CSV
+	csv := table.RenderCSV()
+	if !strings.Contains(csv, "A,B") || !strings.Contains(csv, "foo,1") {
+		t.Errorf("CSV output missing data: %s", csv)
+	}
+
+	// JSON
+	json := table.RenderJSON()
+	if !strings.Contains(json, "foo") || !strings.Contains(json, "bar") {
+		t.Errorf("JSON output missing data: %s", json)
+	}
+
+	// HTML
+	html := table.RenderHTML()
+	if !strings.Contains(html, "<table") || !strings.Contains(html, "foo") {
+		t.Errorf("HTML output missing data: %s", html)
+	}
+
+	// LaTeX
+	latex := table.RenderLaTeX()
+	if !strings.Contains(latex, "\\begin{tabular}") || !strings.Contains(latex, "foo") {
+		t.Errorf("LaTeX output missing data: %s", latex)
+	}
+
+	// MediaWiki
+	wiki := table.RenderMediaWiki()
+	if !strings.Contains(wiki, "wikitable") || !strings.Contains(wiki, "foo") {
+		t.Errorf("MediaWiki output missing data: %s", wiki)
+	}
+
+	// GetFormattedString for all formats
+	formats := []string{"ascii", "text", "csv", "json", "html", "latex", "mediawiki", "unknown"}
+	for _, f := range formats {
+		out := table.GetFormattedString(f)
+		if len(out) == 0 {
+			t.Errorf("GetFormattedString(%q) returned empty string", f)
+		}
+	}
+}
