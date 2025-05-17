@@ -155,8 +155,32 @@ func padString(s string, w int) string {
 }
 
 // FromCSV reads CSV data from an io.Reader and returns a new Table.
-func FromCSV(r io.Reader) (*Table, error) {
+func FromCSV(r io.Reader, delim rune) (*Table, error) {
+	if delim == 0 {
+		// Autodetect delimiter from the first line
+		buf := make([]byte, 4096)
+		n, err := r.Read(buf)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+		data := string(buf[:n])
+		// Try common delimiters
+		candidates := []rune{',', ';', '\t', '|'}
+		maxCount := 0
+		best := ';'
+		for _, d := range candidates {
+			count := strings.Count(data, string(d))
+			if count > maxCount {
+				maxCount = count
+				best = d
+			}
+		}
+		delim = best
+		// Reset reader to include the bytes we just read
+		r = io.MultiReader(strings.NewReader(data), r)
+	}
 	reader := csv.NewReader(r)
+	reader.Comma = delim
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, err

@@ -91,7 +91,7 @@ Adelaide,1295,1158259,600.5
 Brisbane,5905,1857594,1146.4
 Darwin,112,120900,1714.7`
 	r := strings.NewReader(csvData)
-	table, err := FromCSV(r)
+	table, err := FromCSV(r, ',')
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -110,7 +110,7 @@ Darwin,112,120900,1714.7`
 
 func TestFromCSV_Empty(t *testing.T) {
 	r := strings.NewReader("")
-	_, err := FromCSV(r)
+	_, err := FromCSV(r, ',')
 	if err == nil {
 		t.Error("expected error for empty CSV, got nil")
 	}
