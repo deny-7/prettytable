@@ -164,3 +164,56 @@ func TestFromDBRows_SQLite(t *testing.T) {
 		t.Errorf("ASCII output mismatch.\nExpected:\n%s\nActual:\n%s", expected, actual)
 	}
 }
+
+func TestDelRowAndDelColumn(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B", "C"})
+	table.AddRow([]any{1, 2, 3})
+	table.AddRow([]any{4, 5, 6})
+	table.AddRow([]any{7, 8, 9})
+
+	// Remove middle row
+	err := table.DelRow(1)
+	if err != nil {
+		t.Fatalf("DelRow error: %v", err)
+	}
+	if len(table.rows) != 2 || table.rows[1][0] != 7 {
+		t.Errorf("DelRow did not remove row correctly: %+v", table.rows)
+	}
+
+	// Remove first column
+	err = table.DelColumn("A")
+	if err != nil {
+		t.Fatalf("DelColumn error: %v", err)
+	}
+	if len(table.fieldNames) != 2 || table.fieldNames[0] != "B" {
+		t.Errorf("DelColumn did not remove column correctly: %+v", table.fieldNames)
+	}
+	if table.rows[0][0] != 2 || table.rows[1][0] != 8 {
+		t.Errorf("DelColumn did not update rows correctly: %+v", table.rows)
+	}
+
+	// Error cases
+	if err := table.DelRow(10); err == nil {
+		t.Error("expected error for out-of-range row index")
+	}
+	if err := table.DelColumn("Z"); err == nil {
+		t.Error("expected error for missing column name")
+	}
+}
+
+func TestClearRowsAndClear(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B"})
+	table.AddRow([]any{1, 2})
+	table.AddRow([]any{3, 4})
+	table.ClearRows()
+	if len(table.rows) != 0 {
+		t.Errorf("ClearRows did not clear rows: %+v", table.rows)
+	}
+	if len(table.fieldNames) != 2 {
+		t.Errorf("ClearRows should not clear field names: %+v", table.fieldNames)
+	}
+	table.Clear()
+	if len(table.rows) != 0 || len(table.fieldNames) != 0 {
+		t.Errorf("Clear did not clear table: rows=%+v, fields=%+v", table.rows, table.fieldNames)
+	}
+}

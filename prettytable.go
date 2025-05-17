@@ -76,6 +76,47 @@ func (t *Table) AddColumn(field string, column []any) error {
 	return nil
 }
 
+// DelRow deletes a row at the given index.
+func (t *Table) DelRow(index int) error {
+	if index < 0 || index >= len(t.rows) {
+		return fmt.Errorf("row index %d out of range", index)
+	}
+	t.rows = append(t.rows[:index], t.rows[index+1:]...)
+	return nil
+}
+
+// DelColumn deletes a column by field name.
+func (t *Table) DelColumn(field string) error {
+	idx := -1
+	for i, name := range t.fieldNames {
+		if name == field {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("column %q not found", field)
+	}
+	t.fieldNames = append(t.fieldNames[:idx], t.fieldNames[idx+1:]...)
+	for i := range t.rows {
+		if idx < len(t.rows[i]) {
+			t.rows[i] = append(t.rows[i][:idx], t.rows[i][idx+1:]...)
+		}
+	}
+	return nil
+}
+
+// ClearRows deletes all rows but keeps field names.
+func (t *Table) ClearRows() {
+	t.rows = nil
+}
+
+// Clear deletes all rows and field names.
+func (t *Table) Clear() {
+	t.rows = nil
+	t.fieldNames = nil
+}
+
 // String renders the table as ASCII (implements fmt.Stringer)
 func (t *Table) String() string {
 	return t.RenderASCII()
