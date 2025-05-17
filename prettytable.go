@@ -1,6 +1,7 @@
 package prettytable
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -195,6 +196,38 @@ func FromCSV(r io.Reader, delim rune) (*Table, error) {
 			rowAny[i] = v
 		}
 		table.AddRow(rowAny)
+	}
+	return table, nil
+}
+
+// FromDBRows creates a Table from a *sql.Rows result set.
+func FromDBRows(rows *sql.Rows) (*Table, error) {
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	table := NewTableWithFields(columns)
+	for rows.Next() {
+		values := make([]any, len(columns))
+		scanArgs := make([]any, len(columns))
+		for i := range values {
+			scanArgs[i] = &values[i]
+		}
+		if err := rows.Scan(scanArgs...); err != nil {
+			return nil, err
+		}
+		rowCopy := make([]any, len(values))
+		for i, v := range values {
+			if b, ok := v.([]byte); ok {
+				rowCopy[i] = string(b)
+			} else {
+				rowCopy[i] = v
+			}
+		}
+		table.AddRow(rowCopy)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return table, nil
 }

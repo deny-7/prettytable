@@ -1,8 +1,11 @@
 package prettytable
 
 import (
+	"database/sql"
 	"strings"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestTableBasic(t *testing.T) {
@@ -113,5 +116,51 @@ func TestFromCSV_Empty(t *testing.T) {
 	_, err := FromCSV(r, ',')
 	if err == nil {
 		t.Error("expected error for empty CSV, got nil")
+	}
+}
+
+func TestFromDBRows_SQLite(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE cities (
+		name TEXT, area INTEGER, population INTEGER, rainfall REAL
+	)`)
+	if err != nil {
+		t.Fatalf("failed to create table: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO cities (name, area, population, rainfall) VALUES
+		('Adelaide', 1295, 1158259, 600.5),
+		('Brisbane', 5905, 1857594, 1146.4),
+		('Darwin', 112, 120900, 1714.7)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert data: %v", err)
+	}
+
+	rows, err := db.Query("SELECT name, area, population, rainfall FROM cities")
+	if err != nil {
+		t.Fatalf("failed to query: %v", err)
+	}
+	defer rows.Close()
+
+	table, err := FromDBRows(rows)
+	if err != nil {
+		t.Fatalf("FromDBRows error: %v", err)
+	}
+
+	expected := `+----------+------+------------+----------+
+| name     | area | population | rainfall |
++----------+------+------------+----------+
+| Adelaide | 1295 | 1158259    | 600.5    |
+| Brisbane | 5905 | 1857594    | 1146.4   |
+| Darwin   | 112  | 120900     | 1714.7   |
++----------+------+------------+----------+`
+	actual := strings.TrimSpace(table.RenderASCII())
+	if actual != expected {
+		t.Errorf("ASCII output mismatch.\nExpected:\n%s\nActual:\n%s", expected, actual)
 	}
 }
