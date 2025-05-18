@@ -1,12 +1,9 @@
 name: Create Tag
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_type:
-        description: 'Release type (major, minor, patch)'
-        required: true
-        default: 'patch'
+  push:
+    branches:
+      - main
 
 jobs:
   create_tag:
@@ -18,5 +15,11 @@ jobs:
         id: semver
         uses: ietf-tools/semver-action@v1
         with:
-          release_type: ${{ github.event.inputs.release_type }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
+            
+      - name: Create Release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          allowUpdates: true
+          name: ${{ steps.semver.outputs.next }}
+          token: ${{ github.token }}
