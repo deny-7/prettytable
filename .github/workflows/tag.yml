@@ -17,6 +17,10 @@ jobs:
           private-key: ${{ secrets.APP_PRIV_KEY }}
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          go mod tidy
+          go test -v ./...
       - name: Create and push semver tag
         id: semver
         uses: ietf-tools/semver-action@v1
