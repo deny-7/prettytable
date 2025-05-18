@@ -380,3 +380,29 @@ func TestSetStyleAffectsTable(t *testing.T) {
 	}
 	// (Full rendering logic using style fields is not yet implemented)
 }
+
+func TestRenderMarkdown(t *testing.T) {
+	table := NewTableWithFields([]string{"A", "B"})
+	table.AddRow([]any{"foo", 1})
+	table.AddRow([]any{"bar", 2})
+
+	expected := `| A | B |
+| --- | --- |
+| foo | 1 |
+| bar | 2 |`
+	actual := table.RenderMarkdown()
+
+	expLines := strings.Split(expected, "\n")
+	actLines := strings.Split(actual, "\n")
+	if len(expLines) != len(actLines) {
+		t.Errorf("Markdown output line count mismatch. Expected %d, got %d", len(expLines), len(actLines))
+		return
+	}
+	for i := range expLines {
+		e := strings.TrimSpace(expLines[i])
+		a := strings.TrimSpace(actLines[i])
+		if e != a {
+			t.Errorf("Markdown output mismatch on line %d.\nExpected: %q\nActual:   %q", i+1, e, a)
+		}
+	}
+}

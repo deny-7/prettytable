@@ -707,8 +707,47 @@ func latexEscape(s string) string {
 	return replacer.Replace(s)
 }
 
+// RenderMarkdown renders the table as GitHub-flavored Markdown
+func (t *Table) RenderMarkdown() string {
+	if len(t.fieldNames) == 0 {
+		return "(no fields)"
+	}
+	var b strings.Builder
+	// Header row
+	b.WriteString("| ")
+	for i, name := range t.fieldNames {
+		b.WriteString(name)
+		b.WriteString(" | ")
+		if i == len(t.fieldNames)-1 {
+			break
+		}
+	}
+	b.WriteString("\n| ")
+	// Separator row
+	for i := range t.fieldNames {
+		b.WriteString("--- | ")
+		if i == len(t.fieldNames)-1 {
+			break
+		}
+	}
+	b.WriteString("\n")
+	// Data rows
+	for _, row := range t.rows {
+		b.WriteString("| ")
+		for i, cell := range row {
+			b.WriteString(fmt.Sprintf("%v", cell))
+			b.WriteString(" | ")
+			if i == len(row)-1 {
+				break
+			}
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
 // GetFormattedString returns the table as a string in the specified format.
-// Supported formats: "text", "ascii", "csv", "json", "html", "latex", "mediawiki"
+// Supported formats: "text", "ascii", "csv", "json", "html", "latex", "mediawiki", "markdown"
 func (t *Table) GetFormattedString(format string) string {
 	switch strings.ToLower(format) {
 	case "text", "ascii":
@@ -723,6 +762,8 @@ func (t *Table) GetFormattedString(format string) string {
 		return t.RenderLaTeX()
 	case "mediawiki":
 		return t.RenderMediaWiki()
+	case "markdown":
+		return t.RenderMarkdown()
 	default:
 		return t.RenderASCII()
 	}
