@@ -15,6 +15,15 @@ before:
   # you may remove this if you don't need go generate
   - go generate ./...
 
+builds: []
+archives: []
+dockers: []
+brews: []
+snapcrafts: []
+chocolateys: []
+nfpms: []
+sboms: []
+
 gomod:
   proxy: true
 
