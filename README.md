@@ -13,7 +13,7 @@ A Go port of the Python PrettyTable package. Display tabular data in ASCII, Unic
 - Control column alignment (left, center, right)
 - Section dividers (add_divider)
 - Advanced style options (borders, padding, custom chars)
-- Output formats: ASCII, Unicode, Markdown, CSV, HTML, JSON, LaTeX, MediaWiki
+- Output formats: ASCII, Unicode, Markdown, CSV, HTML, JSON, LaTeX, MediaWiki and Markdown
 - Import from CSV or database rows
 
 ## Installation
@@ -102,6 +102,7 @@ fmt.Println(table.RenderJSON())       // JSON
 fmt.Println(table.RenderHTML())       // HTML
 fmt.Println(table.RenderLaTeX())      // LaTeX
 fmt.Println(table.RenderMediaWiki())  // MediaWiki
+fmt.Println(table.RenderMarkdown())  // Markdown
 ```
 
 Or use:
@@ -186,6 +187,6 @@ t.SetStyle(style)
 See GoDoc: https://pkg.go.dev/github.com/deny-7/prettytable
 
 ## License
-Ported to Go by Denys Bondar, 2025
-Based on original work by Luke Maurits and contributors
-Licensed under the BSD 3-Clause License
+Ported to Go by Denys Bondar, 2025  
+Based on original work by Luke Maurits and contributors  
+Licensed under the BSD 3-Clause License  
