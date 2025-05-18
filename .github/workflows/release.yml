@@ -1,32 +1,30 @@
 name: Release
-
 on:
   push:
-    tags:
-    - 'v*.*.*'
+    branches:
+    - main
+    - next
 
 jobs:
-  release:
+  semantic-release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
+    - name: Install GitHub App Token
+      uses: actions/create-github-app-token@v1
+      id: app-token
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+    - name: Checkout
       uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
-    - name: Install GoReleaser
-      uses: goreleaser/goreleaser-action@v5
+        token: ${{ steps.app-token.outputs.token }}
+    - name: Semantic Release
+      uses: cycjimmy/semantic-release-action@v4
       with:
-        version: latest
-    - name: Tests
-      run: |
-        go mod tidy
-        go test -v ./...      
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v5
-      with:
-        version: latest
-        args: release --clean
+        semantic_version: 23.0.2
+        extra_plugins: |
+          conventional-changelog-conventionalcommits@7.0.2
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
