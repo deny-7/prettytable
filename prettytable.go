@@ -12,7 +12,6 @@ import (
 
 // Alignment type for column alignment
 // Left, Center, Right
-// (not used in this minimal version)
 type Alignment int
 
 const (
