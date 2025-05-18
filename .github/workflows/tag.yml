@@ -27,6 +27,7 @@ jobs:
         with:
           token: ${{ github.token }}
           noNewCommitBehavior: warn
+          noVersionBumpBehavior: warn
       - name: Create Release
         uses: ncipollo/release-action@v1.12.0
         with:
